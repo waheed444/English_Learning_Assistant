@@ -114,4 +114,4 @@ Interact with the app and explore various functions to enhance your language lea
 
 ### Developer and Creator of this AI English Learning Assistant.
 
-**[Waheed Ahmad](https://github.com/waheed444)** **|** **[Farhat Sattar](https://github.com/farhatsattar)** **|** **[Mudassar Hassan](https://github.com/MudassarHassan013)** **|** 
+**[Mehwish Javaid](https://github.com/waheed444)** **|** **[Waheed Ahmad](https://github.com/waheed444)** **|** **[Farhat Sattar](https://github.com/farhatsattar)** **|** **[Mudassar Hassan](https://github.com/MudassarHassan013)** **|** 
