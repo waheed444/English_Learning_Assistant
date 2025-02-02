@@ -16,12 +16,12 @@ if not GOOGLE_API_KEY:
     st.error("🚨 GOOGLE_API_KEY is missing! Please check your .env file.")
     st.stop()
 
-# Initialize LLM model
-llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.7)
+# Initialize LLM model (ensure model name is valid)
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0.7)
 
 # Define prompt template
 prompt_template = PromptTemplate(
-    input_variables=["text", "function"],
+    input_variables=["text"],
     template="""
 You are an English language translation expert. Your goal is to provide accurate, context-sensitive Urdu translation of English words and sentences while helping learners understand and apply the content effectively. Follow these detailed steps for translation:
 
@@ -57,18 +57,16 @@ You are an English language translation expert. Your goal is to provide accurate
    - Organize your response into clear sections with headings (e.g., Translation, Pronunciation, Vocabulary, etc.).
    - Use simple and concise language to ensure clarity.
    - Adopt an encouraging tone to motivate learners in their English language journey.
-
-IMPORTANT: Only provide the response for the selected function: {function}. Do not include information for other functions.
 """
 )
 
 # Create LangChain
 translation_chain = LLMChain(llm=llm, prompt=prompt_template)
 
-def process_text_with_model(text, function):
-    """Process input text and return AI-generated response for the specific function."""
-    response = translation_chain.run(text=text, function=function)
-    return response
+def process_text_with_model(text):
+    """Process input text and return AI-generated response."""
+    response = translation_chain.run(text=text)
+    return response  # Returning plain text instead of JSON
 
 def text_to_speech(text, speed="normal"):
     """Convert text to speech using gTTS and return the audio file path."""
@@ -85,6 +83,14 @@ def text_to_speech(text, speed="normal"):
         st.error(f"Failed to generate audio: {e}")
         return None
 
+def extract_section(response, section_title):
+    """Extract a specific section from the response based on the section title."""
+    sections = response.split("###")
+    for section in sections:
+        if section_title in section:
+            return section.strip()
+    return "Section not found."
+
 # ─────────────────────────────
 # 🎨 Streamlit UI Design
 st.set_page_config(page_title="📚 AI English Learning Assistant", page_icon="📚", layout="wide")
@@ -92,139 +98,118 @@ st.set_page_config(page_title="📚 AI English Learning Assistant", page_icon="�
 # Custom CSS for better UI
 st.markdown("""
 <style>
-    .stApp {
-        background-color: #f0f8ff;
-    }
-    .main .block-container {
-        padding-top: 1rem;
-        padding-bottom: 2rem;
-    }
-    h1, h2, h3 {
-        color: #1e90ff;
-    }
-    .stButton > button {
-        background-color: #1e90ff;
+    .stButton button {
+        background-color: #4CAF50;
         color: white;
         border-radius: 5px;
-        padding: 0.5rem 1rem;
-        font-size: 1rem;
-        font-weight: bold;
-        border: none;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
+        padding: 10px 20px;
+        font-size: 16px;
     }
-    .stButton > button:hover {
-        background-color: #0066cc;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    .stTextInput input {
+        padding: 10px;
+        font-size: 16px;
     }
-    .stTextInput > div > div > input {
-        background-color: white;
-        color: #333;
-        border: 1px solid #1e90ff;
-        padding: 0.5rem;
-        font-size: 1rem;
-        border-radius: 5px;
+    .stRadio div {
+        flex-direction: row;
+        gap: 10px;
     }
-    .stRadio > div {
-        background-color: white;
-        padding: 1rem;
-        border-radius: 5px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        color: #4CAF50;
     }
-    .stTabs > div > div > div {
-        background-color: white;
-        border-radius: 5px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        padding: 1rem;
+    .stSpinner div {
+        color: #4CAF50;
     }
-    .stMarkdown a {
-        color: #1e90ff;
-        text-decoration: none;
-    }
-    .stMarkdown a:hover {
-        text-decoration: underline;
-    }
-    .title-container {
-        background-color: #1e90ff;
-        padding: 1rem;
-        border-radius: 5px;
-        margin-bottom: 1rem;
-    }
-    .title-container h1 {
+    .stSuccess {
+        background-color: #4CAF50;
         color: white;
-        margin: 0;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    .stInfo {
+        background-color: #2196F3;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    .stError {
+        background-color: #f44336;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Main title at the top
-st.markdown('<div class="title-container"><h1>📚 AI English Learning Assistant</h1></div>', unsafe_allow_html=True)
+# Main title and description
+st.title("📚 AI English Learning Assistant")
 
-# Description
 st.markdown("""
-Welcome to your personal AI-powered English Learning Assistant! This tool is designed to help you improve your English skills through interactive learning experiences. Whether you're looking for translations, pronunciation guides, or want to test your knowledge with quizzes, we've got you covered.
-
-Let's embark on this exciting journey to enhance your English proficiency!
+Welcome to the AI-powered English Learning Assistant! This tool helps you learn English by providing translations, pronunciation guides, definitions, grammar analysis, and more. Enter a word or sentence below to get started.
 """)
 
 # Tabs for Functions and Quizzes & Exercises
-tab1, tab2 = st.tabs(["🔍 Learning Functions", "🏆 Practice Quiz"])
+tab1, tab2 = st.tabs(["Functions", "Practice Quiz"])
 
 # ─────────────────────────────
-# Learning Functions Tab
+# Functions Tab
 with tab1:
-    st.header("🚀 Learning Functions")
-    
-    # Function selection
-    st.sidebar.header("📊 Select a Function")
+    st.header("Functions")
+    # Sidebar for function selection
+    st.sidebar.header("Select any Function")
     options = ["Translation", "Pronunciation Guide", "Definition", "Grammar and Structure", "Vocabulary Analysis", "Corrections"]
-    selected_option = st.sidebar.selectbox("Choose one:", options)
+    selected_option = st.sidebar.radio("Choose one:", options)
 
     # User input field
-    user_input = st.text_area("✍️ Enter a word or sentence:", placeholder="Type here...", height=100)
+    user_input = st.text_input("✍️ Enter a word or sentence:", placeholder="Type here...")
 
-    # Process button
-    if st.button("🔮 Process", key="process_button"):
-        if user_input:
-            with st.spinner("🧠 AI is working its magic..."):
-                result = process_text_with_model(user_input, selected_option)
-            
-            st.success("✨ Analysis complete! Here's what I found:")
+    # Process input and display results
+    if user_input:
+        if user_input.lower() == "end":
+            st.success("✅ Session Ended! Goodbye! 👋")
+        else:
+            with st.spinner("Processing your request..."):  # Add a loading spinner
+                result = process_text_with_model(user_input)
             
             if selected_option == "Translation":
-                st.markdown("### 🌐 Translation to Urdu:")
-                st.info(result)
+                st.markdown("### 🔍 Translation to Urdu:")
+                translation_section = extract_section(result, "Translation")
+                st.info(translation_section)
             elif selected_option == "Pronunciation Guide":
                 st.markdown("### 🔊 Pronunciation Guide:")
-                st.info(result)
+                pronunciation_section = extract_section(result, "Pronunciation Guide")
+                st.info(pronunciation_section)
                 
+                # Add speed control for pronunciation
                 st.markdown("#### ⚙️ Pronunciation Speed")
                 speed = st.radio("Select speed:", ["Normal", "Slow"], index=0)
                 
+                # Add voice functionality
                 st.markdown("#### 🎤 Listen to the Pronunciation:")
-                audio_file = text_to_speech(result, speed.lower())
+                audio_file = text_to_speech(pronunciation_section, speed.lower())
                 if audio_file:
                     st.audio(audio_file, format='audio/mp3')
             elif selected_option == "Definition":
                 st.markdown("### 📚 Definition:")
-                st.info(result)
+                definition_section = extract_section(result, "Definition")
+                st.info(definition_section)
             elif selected_option == "Vocabulary Analysis":
                 st.markdown("### 🧠 Vocabulary and Phrase Analysis:")
-                st.info(result)
+                vocabulary_section = extract_section(result, "Vocabulary Analysis")
+                st.info(vocabulary_section)
             elif selected_option == "Grammar and Structure":
                 st.markdown("### 📏 Grammar and Structure:")
-                st.info(result)
+                grammar_section = extract_section(result, "Grammar and Structure")
+                st.info(grammar_section)
             elif selected_option == "Corrections":
                 st.markdown("### ✍️ Corrections:")
-                st.info(result)
-        else:
-            st.warning("Please enter some text to analyze.")
+                corrections_section = extract_section(result, "Corrections")
+                st.info(corrections_section)
 
 # ─────────────────────────────
 # Quizzes & Exercises Tab
 with tab2:
-    st.header("🏆 Practice Quiz")
-    st.write("Test your knowledge with these randomly generated quizzes!")
+    st.header("Practice Quiz")
+    st.write("Test your knowledge with these randomly generated quizzes and exercises for your practice!")
 
     # Sample quizzes and exercises
     quizzes = [
@@ -251,6 +236,30 @@ with tab2:
         {
             "question": "What is the correct plural form of 'mouse'?",
             "answer": "mice"
+        },
+        {
+            "question": "Identify the error in the sentence: 'She can sings very well.'",
+            "answer": "Error: 'sings' should be 'sing'. Correct sentence: 'She can sing very well.'"
+        },
+        {
+            "question": "Choose the correct preposition: 'She is good _____ playing chess.' (at, in, on)",
+            "answer": "at"
+        },
+        {
+            "question": "Fill in the blank with the correct article: '_____ apple a day keeps the doctor away.'",
+            "answer": "An"
+        },
+        {
+            "question": "What type of sentence is this: 'Do you want tea or coffee?'",
+            "answer": "Interrogative sentence"
+        },
+        {
+            "question": "Choose the correct sentence: 'He were going to the park' or 'He was going to the park.'",
+            "answer": "He was going to the park."
+        },
+        {
+            "question": "Which of the following is a compound sentence? 'I like pizza, and I like burgers.' or 'I like pizza.'",
+            "answer": "I like pizza, and I like burgers."
         }
     ]
 
@@ -260,36 +269,24 @@ with tab2:
 
     # Display the question
     selected_quiz = st.session_state.selected_quiz
-    st.markdown(f"### 🤔 {selected_quiz['question']}")
+    st.markdown(f"### {selected_quiz['question']}")
 
     # User input for answer
     user_answer = st.text_input("Your Answer:", placeholder="Type your answer here...")
 
-    # Check answer button
-    if st.button("📝 Check Answer", key="check_answer_button"):
-        if user_answer:
-            if user_answer.strip().lower() == selected_quiz["answer"].lower():
-                st.success("✅ Correct! Well done! You're making great progress.")
-                st.balloons()
-                # After a correct answer, pick a new random question
-                st.session_state.selected_quiz = random.choice(quizzes)
-            else:
-                st.error(f"❌ Not quite. The correct answer is: {selected_quiz['answer']}")
-                st.markdown("Don't worry! Learning from mistakes is part of the process. Keep practicing!")
+    # Check the answer when the user submits it
+    if user_answer:
+        if user_answer.strip().lower() == selected_quiz["answer"].lower():
+            st.success("✅ Correct! Well done!")
+            # After a correct answer, pick a new random question
+            st.session_state.selected_quiz = random.choice(quizzes)  # Change to a new quiz question
         else:
-            st.warning("Please enter an answer before checking.")
+            st.error(f"❌ Incorrect. The correct answer is: {selected_quiz['answer']}")
 
-    # Next question button
-    if st.button("➡️ Next Question", key="next_question_button"):
-        st.session_state.selected_quiz = random.choice(quizzes)
-        st.experimental_rerun()
 
 # Footer
 st.markdown("---")
-st.markdown("""
-<div style="text-align: center;">
-    <h4>📚 Keep Learning, Keep Growing! 🌱</h4>
-    <p>Built with ❤️ using LangChain, Google's Gemini API, and Streamlit</p>
-    <p><a href="https://github.com/yourusername/english-learning-assistant" target="_blank">View on GitHub</a> | <a href="mailto:your.email@example.com">Contact Us</a></p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("**Built with LangChain,Google's Gemini API and Streamlit**")
+
+
+# pip install -U streamlit python-dotenv gtts langchain langchain-google-genai pydantic requests
