@@ -21,7 +21,7 @@ llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.7)
 
 # Define prompt template
 prompt_template = PromptTemplate(
-    input_variables=["text"],
+    input_variables=["text", "function"],
     template="""
 You are an English language translation expert. Your goal is to provide accurate, context-sensitive Urdu translation of English words and sentences while helping learners understand and apply the content effectively. Follow these detailed steps for translation:
 
@@ -57,15 +57,17 @@ You are an English language translation expert. Your goal is to provide accurate
    - Organize your response into clear sections with headings (e.g., Translation, Pronunciation, Vocabulary, etc.).
    - Use simple and concise language to ensure clarity.
    - Adopt an encouraging tone to motivate learners in their English language journey.
+
+IMPORTANT: Only provide the response for the selected function: {function}. Do not include information for other functions.
 """
 )
 
 # Create LangChain
 translation_chain = LLMChain(llm=llm, prompt=prompt_template)
 
-def process_text_with_model(text):
-    """Process input text and return AI-generated response."""
-    response = translation_chain.run(text=text)
+def process_text_with_model(text, function):
+    """Process input text and return AI-generated response for the specific function."""
+    response = translation_chain.run(text=text, function=function)
     return response
 
 def text_to_speech(text, speed="normal"):
@@ -83,14 +85,6 @@ def text_to_speech(text, speed="normal"):
         st.error(f"Failed to generate audio: {e}")
         return None
 
-def extract_section(response, section_title):
-    """Extract a specific section from the response based on the section title."""
-    sections = response.split("###")
-    for section in sections:
-        if section_title in section:
-            return section.strip()
-    return "Section not found."
-
 # ─────────────────────────────
 # 🎨 Streamlit UI Design
 st.set_page_config(page_title="📚 AI English Learning Assistant", page_icon="📚", layout="wide")
@@ -99,10 +93,10 @@ st.set_page_config(page_title="📚 AI English Learning Assistant", page_icon="�
 st.markdown("""
 <style>
     .stApp {
-        background-color: #fff;
+        background-color: #f0f8ff;
     }
     .main .block-container {
-        padding-top: 2rem;
+        padding-top: 1rem;
         padding-bottom: 2rem;
     }
     h1, h2, h3 {
@@ -138,7 +132,7 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     .stTabs > div > div > div {
-        background-color: #fff;
+        background-color: white;
         border-radius: 5px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         padding: 1rem;
@@ -150,13 +144,23 @@ st.markdown("""
     .stMarkdown a:hover {
         text-decoration: underline;
     }
+    .title-container {
+        background-color: #1e90ff;
+        padding: 1rem;
+        border-radius: 5px;
+        margin-bottom: 1rem;
+    }
+    .title-container h1 {
+        color: white;
+        margin: 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
+# Main title at the top
+st.markdown('<div class="title-container"><h1>📚 AI English Learning Assistant</h1></div>', unsafe_allow_html=True)
 
-
-# Main title and description
-st.title("📚 AI English Learning Assistant")
+# Description
 st.markdown("""
 Welcome to your personal AI-powered English Learning Assistant! This tool is designed to help you improve your English skills through interactive learning experiences. Whether you're looking for translations, pronunciation guides, or want to test your knowledge with quizzes, we've got you covered.
 
@@ -183,42 +187,36 @@ with tab1:
     if st.button("🔮 Process", key="process_button"):
         if user_input:
             with st.spinner("🧠 AI is working its magic..."):
-                result = process_text_with_model(user_input)
+                result = process_text_with_model(user_input, selected_option)
             
             st.success("✨ Analysis complete! Here's what I found:")
             
             if selected_option == "Translation":
                 st.markdown("### 🌐 Translation to Urdu:")
-                translation_section = extract_section(result, "Translation")
-                st.info(translation_section)
+                st.info(result)
             elif selected_option == "Pronunciation Guide":
                 st.markdown("### 🔊 Pronunciation Guide:")
-                pronunciation_section = extract_section(result, "Pronunciation Guide")
-                st.info(pronunciation_section)
+                st.info(result)
                 
                 st.markdown("#### ⚙️ Pronunciation Speed")
                 speed = st.radio("Select speed:", ["Normal", "Slow"], index=0)
                 
                 st.markdown("#### 🎤 Listen to the Pronunciation:")
-                audio_file = text_to_speech(pronunciation_section, speed.lower())
+                audio_file = text_to_speech(result, speed.lower())
                 if audio_file:
                     st.audio(audio_file, format='audio/mp3')
             elif selected_option == "Definition":
                 st.markdown("### 📚 Definition:")
-                definition_section = extract_section(result, "Definition")
-                st.info(definition_section)
+                st.info(result)
             elif selected_option == "Vocabulary Analysis":
                 st.markdown("### 🧠 Vocabulary and Phrase Analysis:")
-                vocabulary_section = extract_section(result, "Vocabulary Analysis")
-                st.info(vocabulary_section)
+                st.info(result)
             elif selected_option == "Grammar and Structure":
                 st.markdown("### 📏 Grammar and Structure:")
-                grammar_section = extract_section(result, "Grammar and Structure")
-                st.info(grammar_section)
+                st.info(result)
             elif selected_option == "Corrections":
                 st.markdown("### ✍️ Corrections:")
-                corrections_section = extract_section(result, "Corrections")
-                st.info(corrections_section)
+                st.info(result)
         else:
             st.warning("Please enter some text to analyze.")
 
