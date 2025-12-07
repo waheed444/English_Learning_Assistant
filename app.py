@@ -17,7 +17,7 @@ if not GOOGLE_API_KEY:
     st.stop()
 
 # Initialize LLM model (ensure model name is valid)
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0.7)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7)
 
 # Define prompt template
 prompt_template = PromptTemplate(
